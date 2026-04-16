@@ -1,3 +1,5 @@
+namespace ConsoleApp1;
+
 public class CompletedJobRecord
 {
     public Job Job           { get; set; }
