@@ -1,14 +1,13 @@
-namespace ConsoleApp1;
 
+namespace ConsoleApp1;
 public static class PayloadParser
 {
-    // "numbers:10_000,threads:3"  →  (limit: 10000, threads: 3)
     public static (int limit, int threads) ParsePrime(string payload)
     {
-        // Remove underscores used as thousand separators: 10_000 → 10000
+        // Remove underscores used as thousand separators: 10_000 -> 10000
         payload = payload.Replace("_", "");
 
-        // Split by comma → ["numbers:10000", "threads:3"]
+        // Split by comma -> ["numbers:10000", "threads:3"]
         var parts = payload.Split(',');
 
         int limit   = int.Parse(parts[0].Split(':')[1]); // after "numbers:"
@@ -19,7 +18,7 @@ public static class PayloadParser
         return (limit, threads);
     }
 
-    // "delay:1_000"  →  1000
+    // "delay:1_000"  ->  1000
     public static int ParseIO(string payload)
     {
         payload = payload.Replace("_", "");

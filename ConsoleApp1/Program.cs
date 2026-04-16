@@ -81,8 +81,8 @@ public class MainClass
                 JobType type = rng.Next(2) == 0 ? JobType.Prime : JobType.IO;
 
                 string payload = type == JobType.Prime
-                    ? $"{rng.Next(100, 10001)},{rng.Next(1, 9)}"  // "limit,threads"
-                    : $"{rng.Next(100, 1501)}";                     // "delayMs"
+                    ? $"numbers:{rng.Next(100, 20000)},threads:{rng.Next(1, 9)}"
+                    : $"delay:{rng.Next(100, 2000)}";
 
                 Job job = new Job
                 {
