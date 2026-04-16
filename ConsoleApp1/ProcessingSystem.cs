@@ -27,20 +27,22 @@ public class ProcessingSystem
     {
         _maxQueueSize = maxQueueSize;
 
-        // Subscribe to events - async log writing
+        // Subscribe events for logging
         JobCompleted += (job, result) =>
             Task.Run(() => LogToFile($"[{DateTime.Now}][COMPLETED] {job.Id}, Result={result}"));
         JobFailed += (job) =>
             Task.Run(() => LogToFile($"[{DateTime.Now}][FAILED] {job.Id}"));
-        
-        // Spin up worker threads
+
+        // Start worker threads - they immediately go to sleep waiting for jobs
         for (int i = 0; i < workerCount; i++)
         {
             Thread worker = new Thread(WorkerLoop);
-            worker.Name = $"worker-{i}";
+            worker.Name        = $"worker-{i}";
             worker.IsBackground = true;
             worker.Start();
         }
+
+        Console.WriteLine($"[SYSTEM] Started {workerCount} workers.");
     }
 
     // --- Submit ---
