@@ -20,7 +20,7 @@ public class ProcessingSystem
 
     // Events
     public event Action<Job, int>? JobCompleted;
-    public event Action<Job>?     JobFailed;
+    public event Action<Job>? JobFailed;
 
     // Log file lock
     private readonly object _logLock = new object();
