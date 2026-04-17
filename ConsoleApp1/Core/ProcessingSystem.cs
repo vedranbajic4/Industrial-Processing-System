@@ -227,6 +227,11 @@ public class ProcessingSystem
 
     private void GenerateReport()
     {
+        Console.WriteLine($"[REPORT] Generating report... Top jobs in queue: {GetTopJobs(150).Count()}");
+        
+        var topJobs = GetTopJobs(50).ToList();
+        topJobs.ForEach(j => Console.WriteLine($"[REPORT] In queue: {j.Id} (Type={j.Type}, Priority={j.Priority})"));
+        Console.WriteLine($"[REPORT] Total jobs in queue: {_queue.Count}");
         List<CompletedJobRecord> snapshot;
 
         // Take a snapshot so we don't hold the lock during LINQ

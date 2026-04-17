@@ -21,7 +21,7 @@ public class MainClass
                           }).ToList();
 
         Console.WriteLine(
-            $"[CONFIG] Workers: {SystemConfiguration.WorkerThreads}, Producers: {SystemConfiguration.ProducerThreads}, MaxQueue: {SystemConfiguration.MaxQueueSize}, Initial jobs: {jobs.Count}");
+            $"[CONFIG] Workers: {SystemConfiguration.WorkerThreads}, MaxQueue: {SystemConfiguration.MaxQueueSize}, Initial jobs: {jobs.Count}");
 
         return jobs;
     }
@@ -68,7 +68,7 @@ public class MainClass
     // Each producer thread runs this - generates random jobs indefinitely
     private static void ProducerThread(ProcessingSystem system, int index)
     {
-        Random rng = new Random(index * 137); // different seed per thread
+        Random rng = new Random(index * 150); // different seed per thread
 
         while (true)
         {
@@ -90,9 +90,7 @@ public class MainClass
 
                 JobHandle? handle = system.Submit(job);
 
-                if (handle == null)
-                    Console.WriteLine($"[{Thread.CurrentThread.Name}] Queue full, job skipped.");
-                else
+                if (handle != null) // successfully submitted
                     Console.WriteLine($"[{Thread.CurrentThread.Name}] Submitted {job.Type} job, priority={job.Priority}");
             }
             catch (Exception ex)
@@ -100,7 +98,7 @@ public class MainClass
                 Console.WriteLine($"[{Thread.CurrentThread.Name}] Error: {ex.Message}");
             }
 
-            Thread.Sleep(rng.Next(SystemConfiguration.ProducerSleepMinMs, SystemConfiguration.ProducerSleepMaxMs + 1));
+            //Thread.Sleep(rng.Next(SystemConfiguration.ProducerSleepMinMs, SystemConfiguration.ProducerSleepMaxMs + 1));
         }
     }
 }

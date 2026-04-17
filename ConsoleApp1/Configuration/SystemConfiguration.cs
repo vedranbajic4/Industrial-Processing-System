@@ -15,7 +15,7 @@ public static class SystemConfiguration
     public static int WorkerThreads { get; private set; } = 5;  // how many worker threads to start
     public static int MaxQueueSize { get; private set; } = 100; // maximum number of jobs that can be waiting in the queue
     public static int JobTimeoutSeconds { get; private set; } = 2; // how many seconds before a job times out
-    public static int ReportIntervalSeconds { get; private set; } = 60; // interval in seconds for generating reports (one minute)
+    public static int ReportIntervalSeconds { get; private set; } = 10; // interval in seconds for generating reports (one minute)
     public static int MaxReports { get; private set; } = 10; // maximum number of reports to keep
     public static int PrimePayloadMinLimit { get; private set; } = 100; // minimum limit for prime number calculation
     public static int PrimePayloadMaxLimit { get; private set; } = 20000; // maximum limit for prime number calculation
@@ -23,8 +23,6 @@ public static class SystemConfiguration
     public static int PrimePayloadMaxThreads { get; private set; } = 8; // maximum number of threads for prime calculation
     public static int IoDelayMinMs { get; private set; } = 100; // minimum delay for IO jobs in milliseconds
     public static int IoDelayMaxMs { get; private set; } = 2000; // maximum delay for IO jobs in milliseconds
-    public static int ProducerSleepMinMs { get; private set; } = 200; // minimum sleep time for producer threads in milliseconds
-    public static int ProducerSleepMaxMs { get; private set; } = 1500; // maximum sleep time for producer threads in milliseconds
 
     public static string LogFilePath => Path.Combine(LogFolder, LogFileName);
 
@@ -59,11 +57,6 @@ public static class SystemConfiguration
 
         IoDelayMinMs = ReadNonNegativeInt(xmlData, "IoDelayMinMs", IoDelayMinMs);
         IoDelayMaxMs = Math.Max(IoDelayMinMs, ReadNonNegativeInt(xmlData, "IoDelayMaxMs", IoDelayMaxMs));
-
-        ProducerSleepMinMs = ReadNonNegativeInt(xmlData, "ProducerSleepMinMs", ProducerSleepMinMs);
-        ProducerSleepMaxMs = Math.Max(
-            ProducerSleepMinMs,
-            ReadNonNegativeInt(xmlData, "ProducerSleepMaxMs", ProducerSleepMaxMs));
 
         return xmlData;
     }

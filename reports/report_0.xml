@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Report GeneratedAt="2026-04-17 14:33:57" TotalJobs="357">
+<Report GeneratedAt="2026-04-17 15:14:32" TotalJobs="67">
   <JobStats>
-    <JobType Type="IO" Completed="177" Failed="2" AvgTimeMs="969.63" />
-    <JobType Type="Prime" Completed="178" Failed="0" AvgTimeMs="1.14" />
+    <JobType Type="IO" Completed="33" Failed="2" AvgTimeMs="1073.12" />
+    <JobType Type="Prime" Completed="32" Failed="0" AvgTimeMs="2.35" />
   </JobStats>
 </Report>
