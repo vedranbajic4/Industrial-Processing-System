@@ -21,7 +21,7 @@ A thread-safe, async, event-driven industrial job processing system built in C# 
 
 ## 🔍 Overview
 
-This system simulates an industrial job dispatcher. Jobs arrive from multiple producer threads, are queued by priority, and consumed by a fixed pool of worker threads. Each job is executed asynchronously with a 2-second timeout, automatic retry (up to 3 attempts), and full event-driven logging.
+This system simulates an industrial job dispatcher. Jobs arrive from multiple producer threads, are queued by priority, and consumed by a fixed pool of worker threads. Each job is executed asynchronously with configurable timeout, retry, reporting, and logging settings loaded from `SystemConfig.xml`.
 
 **Key features:**
 - Priority-based job queue (lower number = higher priority)
@@ -29,7 +29,7 @@ This system simulates an industrial job dispatcher. Jobs arrive from multiple pr
 - Two job types: `Prime` (CPU-bound, parallel) and `IO` (blocking I/O simulation)
 - Idempotent job submission — same `Guid` is never processed twice
 - Event-driven logging (`JobCompleted`, `JobFailed`)
-- Automatic XML report generation every 60 seconds (circular buffer of 10 files)
+- Automatic XML report generation with configurable interval and retention
 - Thread-safe throughout using `lock` and `Monitor`
 
 ---
@@ -199,9 +199,9 @@ The condition check uses `while (_queue.Count == 0)` — not `if`. When `Pulse()
 
 | Thread | Count | Role |
 |---|---|---|
-| `worker-N` | `WorkerCount` from XML | Consume jobs from the priority queue |
-| `producer-N` | `WorkerCount` from XML | Generate and submit random jobs |
-| `report-thread` | 1 | Generate XML reports every 60 seconds |
+| `worker-N` | `WorkerThreads` from XML | Consume jobs from the priority queue |
+| `producer-N` | `ProducerThreads` from XML | Generate and submit random jobs |
+| `report-thread` | 1 | Generate XML reports using `ReportIntervalSeconds` |
 | `Main thread` | 1 | Reads config, submits initial jobs, keeps app alive |
 
 ---
@@ -320,8 +320,16 @@ The system is fully configured via `SystemConfig.xml`:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <SystemConfig>
-    <WorkerCount>5</WorkerCount>
+    <WorkerThreads>5</WorkerThreads>
+    <ProducerThreads>5</ProducerThreads>
     <MaxQueueSize>100</MaxQueueSize>
+    <RetryCount>3</RetryCount>
+    <JobTimeoutSeconds>2</JobTimeoutSeconds>
+    <ReportIntervalSeconds>60</ReportIntervalSeconds>
+    <MaxReports>10</MaxReports>
+    <LogFolder>..</LogFolder>
+    <LogFileName>log.txt</LogFileName>
+    <ReportsFolder>../reports</ReportsFolder>
     <Jobs>
         <Job Type="Prime" Payload="numbers:10_000,threads:3" Priority="1"/>
         <Job Type="Prime" Payload="numbers:20_000,threads:2" Priority="2"/>
@@ -334,8 +342,15 @@ The system is fully configured via `SystemConfig.xml`:
 
 | Field | Description |
 |---|---|
-| `WorkerCount` | Number of worker threads AND producer threads to spawn |
+| `WorkerThreads` | Number of worker threads to spawn |
+| `ProducerThreads` | Number of producer threads to spawn |
 | `MaxQueueSize` | Maximum jobs allowed in the queue at once — new jobs are rejected beyond this |
+| `RetryCount` | Number of times a worker retries a failed or timed-out job |
+| `JobTimeoutSeconds` | Per-attempt timeout before a job is retried |
+| `ReportIntervalSeconds` | Delay between automatic report generations |
+| `MaxReports` | Number of rotating report files to keep |
+| `LogFolder` / `LogFileName` | Output location for runtime log writes |
+| `ReportsFolder` | Output location for generated XML reports |
 | `Job.Type` | `Prime` or `IO` |
 | `Job.Priority` | Integer — lower = higher priority (1 is processed before 5) |
 | `Job.Payload` | For Prime: `numbers:N,threads:T` — For IO: `delay:Ms` |

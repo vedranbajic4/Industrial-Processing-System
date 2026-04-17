@@ -6,16 +6,10 @@ using System.Xml.Linq;
 
 public class MainClass
 {
-    public static int maxQueueSize = 100;
-    public static int workerCount = 5;
-
     // returns the job list
     public static List<Job> ParseXML(string path)
     {
-        XElement xmlData = XElement.Load(path);
-
-        maxQueueSize = int.Parse(xmlData.Element("MaxQueueSize").Value);
-        workerCount  = int.Parse(xmlData.Element("WorkerCount").Value);
+        XElement xmlData = SystemConfiguration.LoadFromXml(path);
 
         List<Job> jobs = (from job in xmlData.Descendants("Job")
                           select new Job
@@ -26,17 +20,19 @@ public class MainClass
                               Priority = int.Parse(job.Attribute("Priority")?.Value ?? "3") // default 3 if missing
                           }).ToList();
 
-        Console.WriteLine($"[CONFIG] Workers: {workerCount}, MaxQueue: {maxQueueSize}, Initial jobs: {jobs.Count}");
+        Console.WriteLine(
+            $"[CONFIG] Workers: {SystemConfiguration.WorkerThreads}, Producers: {SystemConfiguration.ProducerThreads}, MaxQueue: {SystemConfiguration.MaxQueueSize}, Initial jobs: {jobs.Count}");
+
         return jobs;
     }
 
     public static void Main(string[] args)
     {
         // 1. Parse config + initial job list
-        List<Job> initialJobs = ParseXML("../SystemConfig.xml");
+        List<Job> initialJobs = ParseXML(SystemConfiguration.SystemConfigPath);
 
         // 2. Create ProcessingSystem - workers start sleeping inside
-        var system = new ProcessingSystem(workerCount, maxQueueSize);
+        var system = new ProcessingSystem();
 
         // 3. Submit initial jobs from XML
         foreach (Job job in initialJobs)
@@ -56,7 +52,7 @@ public class MainClass
         }
 
         // 4. Start producer threads - generate random jobs forever
-        for (int i = 0; i < workerCount; i++)
+        for (int i = 0; i < SystemConfiguration.WorkerThreads; i++)
         {
             int threadIndex = i; // capture for lambda
             Thread producer = new Thread(() => ProducerThread(system, threadIndex));
@@ -81,8 +77,8 @@ public class MainClass
                 JobType type = rng.Next(2) == 0 ? JobType.Prime : JobType.IO;
 
                 string payload = type == JobType.Prime
-                    ? $"numbers:{rng.Next(100, 20000)},threads:{rng.Next(1, 9)}"
-                    : $"delay:{rng.Next(100, 2000)}";
+                    ? $"numbers:{rng.Next(SystemConfiguration.PrimePayloadMinLimit, SystemConfiguration.PrimePayloadMaxLimit + 1)},threads:{rng.Next(SystemConfiguration.PrimePayloadMinThreads, SystemConfiguration.PrimePayloadMaxThreads + 1)}"
+                    : $"delay:{rng.Next(SystemConfiguration.IoDelayMinMs, SystemConfiguration.IoDelayMaxMs + 1)}";
 
                 Job job = new Job
                 {
@@ -104,7 +100,7 @@ public class MainClass
                 Console.WriteLine($"[{Thread.CurrentThread.Name}] Error: {ex.Message}");
             }
 
-            Thread.Sleep(rng.Next(200, 1500)); // wait random time before next job
+            Thread.Sleep(rng.Next(SystemConfiguration.ProducerSleepMinMs, SystemConfiguration.ProducerSleepMaxMs + 1));
         }
     }
 }

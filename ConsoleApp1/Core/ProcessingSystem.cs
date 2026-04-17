@@ -10,7 +10,6 @@ public class ProcessingSystem
     private readonly object _queueLock = new();
     // queue to hold the jobs and their associated TaskCompletionSource(results), priority is determined by the job's priority
     private readonly PriorityQueue<(Job, TaskCompletionSource<int>), int> _queue = new();
-    private readonly int _maxQueueSize;
     // idempotency tracking to ensure that the same job is not processed multiple times
     private readonly HashSet<Guid> _submittedIds = new();
 
@@ -26,16 +25,11 @@ public class ProcessingSystem
     private readonly object _logLock = new object();
 
     private int _reportIndex = 0;          // tracks which file slot to write (0-9)
-    private const int MaxReports = 10;     // circular buffer size
-    private const string ReportDir = "../reports";
-
 
     // --- Constructor ---
     // Called ONCE from Main. Spins up worker threads immediately.
-    public ProcessingSystem(int workerCount, int maxQueueSize)
+    public ProcessingSystem()
     {
-        _maxQueueSize = maxQueueSize;
-
         // Subscribe events for logging
         JobCompleted += (job, result) =>
             Task.Run(() => LogToFile($"[{DateTime.Now}][COMPLETED] {job.Id}, Result={result}"));
@@ -43,7 +37,7 @@ public class ProcessingSystem
             Task.Run(() => LogToFile($"[{DateTime.Now}][FAILED] {job.Id}"));
 
         // Start worker threads - they immediately go to sleep waiting for jobs
-        for (int i = 0; i < workerCount; i++)
+        for (int i = 0; i < SystemConfiguration.WorkerThreads; i++)
         {
             Thread worker = new Thread(WorkerLoop);
             worker.Name        = $"worker-{i}";
@@ -57,7 +51,7 @@ public class ProcessingSystem
         reportThread.IsBackground = true;
         reportThread.Start();
             
-        Console.WriteLine($"[SYSTEM] Started {workerCount} workers.");
+        Console.WriteLine($"[SYSTEM] Started {SystemConfiguration.WorkerThreads} workers.");
     }
 
     // --- Submit ---
@@ -66,7 +60,7 @@ public class ProcessingSystem
         lock (_queueLock)
         {
             // Queue full - reject
-            if (_queue.Count >= _maxQueueSize)
+            if (_queue.Count >= SystemConfiguration.MaxQueueSize)
                 return null; 
 
             // Already submitted - idempotency
@@ -114,12 +108,12 @@ public class ProcessingSystem
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        for (int attempt = 1; attempt <= 3; attempt++)
+        for (int attempt = 1; attempt <= SystemConfiguration.RetryCount; attempt++)
         {
             try
             {
                 var jobTask = Task.Run(() => RunJobLogic(job));
-                bool finished = jobTask.Wait(TimeSpan.FromSeconds(2));
+                bool finished = jobTask.Wait(TimeSpan.FromSeconds(SystemConfiguration.JobTimeoutSeconds));
 
                 if (finished)
                 {
@@ -134,22 +128,22 @@ public class ProcessingSystem
                     return;
                 }
 
-                Console.WriteLine($"[{Thread.CurrentThread.Name}] Job {job.Id} timed out (attempt {attempt}/3)");
+                Console.WriteLine($"[{Thread.CurrentThread.Name}] Job {job.Id} timed out (attempt {attempt}/{SystemConfiguration.RetryCount})");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[{Thread.CurrentThread.Name}] Job {job.Id} threw (attempt {attempt}/3): {ex.Message}");
+                Console.WriteLine($"[{Thread.CurrentThread.Name}] Job {job.Id} threw (attempt {attempt}/{SystemConfiguration.RetryCount}): {ex.Message}");
             }
         }
 
-        // All 3 failed
+        // All retries failed
         stopwatch.Stop();
         LogToFile($"[{DateTime.Now}][ABORT] {job.Id}");
 
         lock (_completedLock)
             _completedJobs.Add(new CompletedJobRecord(job, 0, failed: true, stopwatch.Elapsed.TotalMilliseconds));
 
-        tcs.TrySetException(new Exception("Job aborted after 3 failures"));
+        tcs.TrySetException(new Exception($"Job aborted after {SystemConfiguration.RetryCount} failures"));
         JobFailed?.Invoke(job);
     }
 
@@ -213,17 +207,20 @@ public class ProcessingSystem
     private void LogToFile(string message)
     {
         lock (_logLock)
-            File.AppendAllText("../log.txt", message + "\n");
+        {
+            Directory.CreateDirectory(SystemConfiguration.LogFolder);
+            File.AppendAllText(SystemConfiguration.LogFilePath, message + Environment.NewLine);
+        }
     }
     // --- Report generation ---
     private void ReportLoop()
     {
         // Create reports directory if it doesn't exist
-        Directory.CreateDirectory(ReportDir);
+        Directory.CreateDirectory(SystemConfiguration.ReportsFolder);
 
         while (true)
         {
-            Thread.Sleep(TimeSpan.FromMinutes(1));
+            Thread.Sleep(TimeSpan.FromSeconds(SystemConfiguration.ReportIntervalSeconds));
             GenerateReport();
         }
     }
@@ -271,8 +268,8 @@ public class ProcessingSystem
         );
 
         // Circular file naming: report_0.xml ... report_9.xml
-        // _reportIndex % 10 means after report_9, we overwrite report_0 (the oldest)
-        string fileName = Path.Combine(ReportDir, $"report_{_reportIndex % MaxReports}.xml");
+        // _reportIndex % MaxReports means after the last file, we overwrite the oldest one
+        string fileName = Path.Combine(SystemConfiguration.ReportsFolder, $"report_{_reportIndex % SystemConfiguration.MaxReports}.xml");
         _reportIndex++;
 
         doc.Save(fileName);

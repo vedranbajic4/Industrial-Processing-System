@@ -13,7 +13,10 @@ public static class PayloadParser
         int limit   = int.Parse(parts[0].Split(':')[1]); // after "numbers:"
         int threads = int.Parse(parts[1].Split(':')[1]); // after "threads:"
 
-        threads = Math.Clamp(threads, 1, 8); // enforce [1,8] range
+        threads = Math.Clamp(
+            threads,
+            SystemConfiguration.PrimePayloadMinThreads,
+            SystemConfiguration.PrimePayloadMaxThreads);
 
         return (limit, threads);
     }
